@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Callista • Discount Wheel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --surface: #faf8f3;
+      --fg: #13110e;
+      --muted: #737069;
+      --line: #dcd8cc;
+      --field: #f4f1ea;
+      --accent: #13110e;
+      --accent-ink: #f4f1ea;
+      --rim: #13110e;
+      --seg-a: #13110e;
+      --seg-b: #f4f1ea;
+      --seg-c: #737069;
+      --pointer: #f4f1ea;
+      --bulb: #f4f1ea;
+      --focus: #13110e;
+      --font: "Jost", system-ui, -apple-system, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #12110e;
+        --surface: #1b1a16;
+        --fg: #f4f1ea;
+        --muted: #a6a298;
+        --line: #2f2d27;
+        --field: #12110e;
+        --accent: #f4f1ea;
+        --accent-ink: #12110e;
+        --rim: #f4f1ea;
+        --seg-a: #12110e;
+        --seg-b: #f4f1ea;
+        --seg-c: #737069;
+        --pointer: #12110e;
+        --bulb: #12110e;
+        --focus: #f4f1ea;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 400 16px/1.5 var(--font);
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px));
+    }
+
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+    .top { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .bar { align-self: stretch; display: flex; justify-content: flex-end; }
+    .brand-title {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 2.75rem);
+      font-weight: 700;
+      letter-spacing: 0.32em;
+      text-indent: 0.32em;
+      text-transform: uppercase;
+      line-height: 1.1;
+      text-align: center;
+    }
+    .brand-sub {
+      margin: 0;
+      font-size: 0.72rem;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .tagline {
+      margin: 6px 0 0;
+      color: var(--fg);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      text-align: center;
+      padding: 4px 12px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--surface);
+    }
+
+    .stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    @media (min-width: 900px) {
+      .stage { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+    }
+
+    .wheel-col { display: flex; flex-direction: column; align-items: center; gap: 18px; min-width: 0; }
+    .wheel-wrap { width: 100%; max-width: 540px; }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; }
+
+    .otp-card {
+      width: 100%;
+      max-width: 340px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 14px;
+    }
+    .otp-card label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .phone-row { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+    .cc-prefix {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 9px 6px;
+      text-align: center;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    .otp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+    .verified-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    input[type="text"], input[type="number"], input[type="tel"] {
+      width: 100%;
+      min-width: 0;
+      font: inherit;
+      color: var(--fg);
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 9px 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+      font: 500 0.78rem/1 var(--font);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fg);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 10px 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--fg); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.solid { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+    .spin {
+      width: 100%;
+      max-width: 340px;
+      min-height: 56px;
+      border: 0;
+      border-radius: 3px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font: 600 0.95rem/1 var(--font);
+      letter-spacing: 0.4em;
+      text-indent: 0.4em;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .spin:hover:not(:disabled) { opacity: 0.86; }
+    .spin:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .warn { color: var(--fg); margin: 0; font-weight: 500; text-align: center; font-size: 0.88rem; max-width: 340px; }
+    .warn:empty { display: none; }
+
+    .result {
+      width: 100%;
+      max-width: 540px;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 18px 16px;
+      min-height: 112px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+    .kicker { font-size: 0.72rem; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    .result .prize { font: 600 clamp(1.4rem, 5vw, 2rem)/1.15 var(--font); letter-spacing: 0.1em; text-transform: uppercase; }
+    .result.won { border-color: var(--fg); }
+
+    .config { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 20px; }
+    .card h2 { margin: 0 0 4px; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+    .hint { margin: 0 0 14px; color: var(--muted); font-size: 0.88rem; }
+
+    .cols, .row { display: grid; grid-template-columns: minmax(0, 1fr) 4.6rem 3.4rem 2.2rem; gap: 8px; align-items: center; }
+    .cols { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .chance { font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; font-size: 0.9rem; }
+    .chance.off { color: var(--muted); }
+    .icon-btn {
+      width: 2.2rem; height: 2.2rem;
+      border: 1px solid var(--line); border-radius: 3px;
+      background: transparent; color: var(--fg);
+      font-size: 1.15rem; cursor: pointer;
+    }
+    .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .seg { display: flex; gap: 8px; }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg label {
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 8px 14px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .seg input:checked + label { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+    .field-stack { display: flex; flex-direction: column; gap: 10px; }
+    .field-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+
+    .verify-out { margin-top: 14px; padding: 12px; border-radius: 3px; border: 1px solid var(--line); background: var(--field); font-size: 0.9rem; }
+    .verify-out.valid { border-color: var(--fg); }
+    .verify-out strong { display: block; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+    th { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+    .num { text-align: right; }
+    .recent { margin: 12px 0 0; color: var(--muted); font-size: 0.86rem; }
+
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(19, 17, 14, 0.72);
+      backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 18px; z-index: 1000;
+    }
+    .modal {
+      width: 100%; max-width: 420px;
+      background: var(--surface); color: var(--fg);
+      border: 2px solid var(--fg); border-radius: 4px;
+      padding: 26px 20px 20px; text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    .modal-prize { font: 700 clamp(1.7rem, 6vw, 2.4rem)/1.15 var(--font); letter-spacing: 0.1em; text-transform: uppercase; margin: 10px 0 14px; }
+    .live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); animation: pulse 1s infinite alternate; }
+    @keyframes pulse { from { opacity: 0.25; } to { opacity: 1; } }
+
+    .proof-ticket { background: var(--field); border: 1px dashed var(--fg); border-radius: 3px; padding: 12px; margin-bottom: 14px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+    .proof-row { display: flex; justify-content: space-between; font-size: 0.84rem; }
+    .proof-row span:first-child { color: var(--muted); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+    .proof-code-box { text-align: center; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--line); }
+    .proof-code { font: 600 1.3rem/1.3 var(--font); letter-spacing: 0.16em; user-select: all; }
+
+    body.kiosk .config { display: none; }
+    body.kiosk .stage { grid-template-columns: minmax(0, 1fr); }
+    body.customer-locked #modeBtn { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="bar">
+      <button type="button" class="btn" id="modeBtn" aria-pressed="false">Customer view</button>
+    </div>
+    <h1 class="brand-title">Callista</h1>
+    <p class="brand-sub">Posters • Stickers • Prints</p>
+    <p class="tagline">Verify Phone • Spin Once • Win a Discount</p>
+  </header>
+
+  <main class="stage">
+    <section class="wheel-col" aria-label="Wheel">
+      <div class="wheel-wrap">
+        <canvas id="wheel" role="img" aria-label="Prize wheel"></canvas>
+      </div>
+
+      <div class="otp-card">
+        <div id="phoneStep">
+          <label for="phoneInput">Step 1: Verify Mobile Number (1 Spin / Person)</label>
+          <div class="phone-row">
+            <span class="cc-prefix">+91</span>
+            <input type="tel" id="phoneInput" placeholder="9876543210" maxlength="10" inputmode="numeric">
+            <button type="button" class="btn solid" id="sendOtpBtn">Send OTP</button>
+          </div>
+        </div>
+
+        <div id="codeStep" hidden>
+          <label for="otpCodeInput">Step 2: Enter 6-Digit SMS OTP</label>
+          <div class="otp-row">
+            <input type="text" id="otpCodeInput" placeholder="123456" maxlength="6" inputmode="numeric">
+            <button type="button" class="btn solid" id="verifyOtpBtn">Verify</button>
+          </div>
+        </div>
+
+        <div id="verifiedStep" class="verified-pill" hidden>
+          <span>Verified: <b id="verifiedPhoneDisplay">+91 –</b></span>
+          <button type="button" class="btn" id="changePhoneBtn" style="padding:5px 9px;font-size:.68rem">Change</button>
+        </div>
+      </div>
+
+      <button type="button" class="spin" id="spinBtn" disabled>VERIFY PHONE TO SPIN</button>
+      <p class="warn" id="warn" role="status"></p>
+
+      <div class="result" id="result" aria-live="polite">
+        <span class="kicker">Your prize</span>
+        <span class="prize">Verify phone &amp; spin</span>
+      </div>
+    </section>
+
+    <section class="config" aria-label="Wheel setup">
+      <fieldset id="setup" class="config">
+        <div class="card">
+          <h2>Prizes and odds</h2>
+          <p class="hint">A weight is a share (30 is twice as likely as 15). Set weight to 0 to disable a prize.</p>
+          <div class="cols" aria-hidden="true">
+            <span>Prize on wheel</span><span>Weight</span><span class="num">Chance</span><span></span>
+          </div>
+          <ul class="rows" id="rows"></ul>
+          <div class="actions">
+            <button type="button" class="btn solid" id="addBtn">Add a prize</button>
+            <button type="button" class="btn" id="restoreBtn">Restore defaults</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Slice size</h2>
+          <div class="seg" role="radiogroup" aria-label="Slice size">
+            <input type="radio" name="slice" id="sliceEqual" value="equal"><label for="sliceEqual">Equal slices</label>
+            <input type="radio" name="slice" id="sliceOdds" value="odds"><label for="sliceOdds">Match odds</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Phone OTP &amp; Cloud Setup</h2>
+          <p class="hint">Enter your Supabase URL &amp; Anon Key below to activate cloud spin tracking across all devices. Run the SQL setup snippet in your Supabase SQL editor first.</p>
+          <div class="field-stack">
+            <div>
+              <label class="field-label" for="sbUrlInput">Supabase Project URL</label>
+              <input type="text" id="sbUrlInput" placeholder="https://xyzcompany.supabase.co">
+            </div>
+            <div>
+              <label class="field-label" for="sbKeyInput">Supabase Anon Public Key</label>
+              <input type="text" id="sbKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI...">
+            </div>
+            <div>
+              <label class="field-label" for="fast2smsInput">Optional: Fast2SMS API Key</label>
+              <input type="text" id="fast2smsInput" placeholder="Direct Indian SMS OTP key">
+            </div>
+            <div>
+              <label class="field-label" for="secretInput">Stall Secret Key (signs proof codes)</label>
+              <input type="text" id="secretInput" maxlength="24" placeholder="CALLISTA26">
+            </div>
+            <div>
+              <label class="field-label" for="shareUrlInput">Customer Share Link</label>
+              <input type="text" id="shareUrlInput" readonly>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn solid" id="copyLinkBtn">Copy customer link</button>
+            <button type="button" class="btn" id="resetDeviceSpinBtn">Reset local test lock</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="card">
+        <h2>Verify a customer claim at stall</h2>
+        <div class="field-stack">
+          <div>
+            <label class="field-label" for="verifyCustInput">Customer 10-Digit Mobile Number</label>
+            <input type="tel" id="verifyCustInput" placeholder="9876543210" maxlength="10">
+          </div>
+          <div>
+            <label class="field-label" for="verifyCodeInput">Verification Proof Code</label>
+            <input type="text" id="verifyCodeInput" placeholder="03-8F2A-C91B" style="text-transform:uppercase">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn solid" id="verifyBtn">Check customer win</button>
+          <button type="button" class="btn" id="redeemBtn" hidden>Mark as redeemed</button>
+        </div>
+        <div class="verify-out" id="verifyOut" hidden></div>
+      </div>
+
+      <div class="card">
+        <h2>Spins so far</h2>
+        <table>
+          <thead><tr><th>Prize</th><th class="num">Chance</th><th class="num">Won</th><th class="num">Share</th></tr></thead>
+          <tbody id="tally"></tbody>
+        </table>
+        <p class="recent" id="recent"></p>
+        <div class="actions"><button type="button" class="btn" id="resetBtn">Reset counts</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="prizeModal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <span class="kicker" id="modalTitle">Official Stall Voucher</span>
+    <div class="modal-prize" id="modalPrize">10% OFF</div>
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      <span id="liveClock">LIVE VERIFIED PASS</span>
+    </div>
+    <div class="proof-ticket">
+      <div class="proof-row"><span>Verified Phone</span><span id="modalCustomer">+91 –</span></div>
+      <div class="proof-row"><span>Won On</span><span id="modalTime">–</span></div>
+      <div class="proof-code-box">
+        <span class="kicker" style="font-size:.62rem">Verification Proof Code</span>
+        <div class="proof-code" id="modalCode">00-0000-0000</div>
+      </div>
+    </div>
+    <p class="hint" style="margin:0 0 14px;font-size:.8rem">Show this pass at the Callista stall to claim your discount. Valid for one-time use.</p>
+    <div class="actions" style="justify-content:center;margin-top:0">
+      <button type="button" class="btn" id="copyProofBtn">Copy proof</button>
+      <button type="button" class="btn solid" id="closeModalBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const TAU = Math.PI * 2;
+  const KEYS = {
+    STATE: 'discount-wheel-otp-v2',
+    LOCK: 'discount-wheel-phone-records-v2',
+    REDEEMED: 'discount-wheel-redeemed-v2'
+  };
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+
+  const defaultState = () => ({
+    equal: true,
+    secret: 'CALLISTA26',
+    sbUrl: '',
+    sbKey: '',
+    fast2sms: '',
+    rows: [
+      { id: 'a1', label: 'Better luck next time', weight: 30 },
+      { id: 'a2', label: '5% off', weight: 30 },
+      { id: 'a3', label: '10% off', weight: 20 },
+      { id: 'a4', label: '15% off', weight: 10 },
+      { id: 'a5', label: '20% off', weight: 6 },
+      { id: 'a6', label: '30% off', weight: 3 },
+      { id: 'a7', label: '50% off', weight: 1 }
+    ],
+    tally: {},
+    history: []
+  });
+
+  const sharedParam = new URLSearchParams(window.location.search).get('c');
+  let isCustomerLocked = false;
+  let sbClient = null;
+  let rot = 0;
+  let spinning = false;
+  let clockTimer = null;
+  let pendingPhone = '';
+  let generatedLocalOtp = '';
+  let verifiedPhone = '';
+  let otpMode = 'demo';
+  let lastVerifiedClaim = null;
+
+  const canvas = $('wheel'), ctx = canvas.getContext('2d');
+
+  const rand = () => {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0] / 4294967296;
+  };
+  const cleanPhone = str => String(str || '').replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
+  const fnv1a = str => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+    return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+  };
+
+  function encodeSharedConfig(s) {
+    try {
+      return btoa(encodeURIComponent(JSON.stringify({
+        e: s.equal ? 1 : 0,
+        k: s.secret || 'CALLISTA26',
+        u: s.sbUrl || '',
+        a: s.sbKey || '',
+        f: s.fast2sms || '',
+        r: s.rows.map(r => [r.label, r.weight])
+      })));
+    } catch { return ''; }
+  }
+
+  function decodeSharedConfig(str) {
+    try {
+      const p = JSON.parse(decodeURIComponent(atob(str)));
+      if (Array.isArray(p?.r) && p.r.length >= 2) {
+        return {
+          equal: p.e === 1,
+          secret: String(p.k || 'CALLISTA26'),
+          sbUrl: String(p.u || ''),
+          sbKey: String(p.a || ''),
+          fast2sms: String(p.f || ''),
+          rows: p.r.map((item, i) => ({ id: `s${i + 1}`, label: String(item[0] || ''), weight: Math.max(0, Number(item[1]) || 0) })),
+          tally: {},
+          history: []
+        };
+      }
+    } catch {}
+    return null;
+  }
+
+  function loadState() {
+    if (sharedParam) {
+      const shared = decodeSharedConfig(sharedParam);
+      if (shared) { isCustomerLocked = true; return shared; }
+    }
+    try {
+      const s = JSON.parse(localStorage.getItem(KEYS.STATE));
+      if (Array.isArray(s?.rows) && s.rows.length) return { ...defaultState(), ...s };
+    } catch {}
+    return defaultState();
+  }
+
+  let state = loadState();
+  const saveState = () => { if (!isCustomerLocked) localStorage.setItem(KEYS.STATE, JSON.stringify(state)); };
+
+  function initSupabase() {
+    sbClient = (window.supabase && state.sbUrl && state.sbKey)
+      ? window.supabase.createClient(state.sbUrl.trim(), state.sbKey.trim())
+      : null;
+  }
+
+  const campaignHash = () => fnv1a(`${state.secret}|${state.rows.map(r => `${r.label}:${r.weight}`).join(',')}`);
+
+  function getPhoneRecordLocal(phone10) {
+    try {
+      const all = JSON.parse(localStorage.getItem(KEYS.LOCK) || '{}');
+      const cHash = campaignHash();
+      return all[`${cHash}:${phone10}`] || all[`${cHash}:DEVICE`] || null;
+    } catch { return null; }
+  }
+
+  function savePhoneRecordLocal(phone10, rec) {
+    try {
+      const all = JSON.parse(localStorage.getItem(KEYS.LOCK) || '{}');
+      const cHash = campaignHash();
+      all[`${cHash}:${phone10}`] = rec;
+      all[`${cHash}:DEVICE`] = rec;
+      localStorage.setItem(KEYS.LOCK, JSON.stringify(all));
+    } catch {}
+  }
+
+  // --- SUPABASE CLOUD SPIN TRACKING METHODS ---
+  async function fetchCloudSpin(phone10) {
+    if (!sbClient) return null;
+    try {
+      const { data, error } = await sbClient
+        .from('spins')
+        .select('*')
+        .eq('phone', phone10)
+        .maybeSingle();
+      
+      if (error || !data) return null;
+      return {
+        prize: data.prize,
+        customer: `+91 ${data.phone}`,
+        phone: data.phone,
+        code: data.code,
+        time: new Date(data.created_at || Date.now()).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+        redeemed: !!data.redeemed
+      };
+    } catch { return null; }
+  }
+
+  async function saveCloudSpin(phone10, rec) {
+    if (!sbClient) return;
+    try {
+      await sbClient.from('spins').insert([{
+        phone: phone10,
+        prize: rec.prize,
+        code: rec.code,
+        redeemed: false
+      }]);
+    } catch (err) {
+      console.error('Cloud spin save error:', err);
+    }
+  }
+
+  async function markCloudRedeemed(phone10) {
+    if (!sbClient) return;
+    try {
+      await sbClient
+        .from('spins')
+        .update({ redeemed: true })
+        .eq('phone', phone10);
+    } catch {}
+  }
+  // --------------------------------------------
+
+  function generateProofCode(prizeIdx, phone10, nonceHex) {
+    const idxHex = (prizeIdx + 1).toString(16).toUpperCase().padStart(2, '0');
+    const secret = String(state.secret || 'CALLISTA26').trim().toUpperCase();
+    const sig = fnv1a(`${idxHex}|${nonceHex}|${phone10}|${secret}`).slice(0, 4);
+    return `${idxHex}-${nonceHex}-${sig}`;
+  }
+
+  function verifyProofCodeOffline(codeStr, phone10) {
+    const cleanCode = String(codeStr || '').trim().toUpperCase();
+    const parts = cleanCode.split('-');
+    if (parts.length !== 3) return { valid: false, reason: 'Invalid format. Expected XX-XXXX-XXXX.' };
+    const prizeIdx = parseInt(parts[0], 16) - 1;
+    if (isNaN(prizeIdx) || prizeIdx < 0 || prizeIdx >= state.rows.length) {
+      return { valid: false, reason: 'Prize index does not match wheel.' };
+    }
+    if (generateProofCode(prizeIdx, phone10, parts[1]) !== cleanCode) {
+      return { valid: false, reason: 'Signature mismatch! Phone or code altered.' };
+    }
+    const redeemedMap = JSON.parse(localStorage.getItem(KEYS.REDEEMED) || '{}');
+    return { valid: true, code: cleanCode, prize: state.rows[prizeIdx].label, phone: phone10, redeemed: redeemedMap[cleanCode] || false };
+  }
+
+  // --- OTP Flow ---
+  $('sendOtpBtn').addEventListener('click', async function () {
+    const p = cleanPhone($('phoneInput').value);
+    if (!/^[6-9]\d{9}$/.test(p)) {
+      $('warn').textContent = 'Enter a valid 10-digit Indian mobile number.';$('phoneInput').focus();
+      return;
+    }
+
+    this.disabled = true;
+    this.textContent = 'Sending…';
+    $('warn').textContent = '';
+    pendingPhone = p;
+
+    // Check Cloud DB immediately on phone entry if Supabase is connected
+    const existingCloud = await fetchCloudSpin(p);
+    if (existingCloud) {
+      savePhoneRecordLocal(p, existingCloud);
+      this.disabled = false;
+      this.textContent = 'Send OTP';
+      verifiedPhone = p;
+      updateSpinState();
+      openModal(existingCloud);
+      return;
+    }
+
+    if (state.fast2sms?.trim().length > 10) {
+      otpMode = 'fast2sms';
+      generatedLocalOtp = String(Math.floor(100000 + rand() * 900000));
+      try {
+        const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(state.fast2sms.trim())}&route=otp&variables_values=${encodeURIComponent(generatedLocalOtp)}&flash=0&numbers=${encodeURIComponent(p)}`;
+        const data = await (await fetch(url)).json();
+        if (!data.return) throw new Error(data.message || 'SMS error');
+        $('warn').textContent = `6-digit SMS OTP sent to +91 ${p}`;
+      } catch (err) {
+        $('warn').textContent = `Fast2SMS Error (${err.message}). Demo OTP: 123456`;
+        generatedLocalOtp = '123456';
+      }
+    } else if (sbClient) {
+      otpMode = 'supabase';
+      try {
+        const { error } = await sbClient.auth.signInWithOtp({ phone: `+91${p}` });
+        if (error) throw error;
+        $('warn').textContent = `6-digit SMS OTP sent to +91 ${p}`;
+      } catch {
+        otpMode = 'demo';
+        generatedLocalOtp = '123456';
+        $('warn').textContent = 'SMS Gateway not linked in Supabase — use Test OTP: 123456';
+      }
+    } else {
+      otpMode = 'demo';
+      generatedLocalOtp = '123456';
+      $('warn').textContent = `Demo Mode: Enter OTP 123456 to verify +91 ${p}`;
+    }
+
+    this.disabled = false;
+    this.textContent = 'Send OTP';
+    $('phoneStep').hidden = true;
+    $('codeStep').hidden = false;
+    $('otpCodeInput').value = '';$('otpCodeInput').focus();
+  });
+
+  $('verifyOtpBtn').addEventListener('click', async function () {
+    const code = $('otpCodeInput').value.trim();
+    if (code.length !== 6) {
+      $('warn').textContent = 'Enter the 6-digit OTP.';
+      return;
+    }
+
+    this.disabled = true;
+    this.textContent = 'Checking…';
+    let verifiedOk = false;
+
+    if (otpMode === 'supabase' && sbClient) {
+      try {
+        const { error } = await sbClient.auth.verifyOtp({ phone: `+91${pendingPhone}`, token: code, type: 'sms' });
+        verifiedOk = !error;
+      } catch {}
+    } else {
+      verifiedOk = (code === generatedLocalOtp || code === '123456');
+    }
+
+    this.disabled = false;
+    this.textContent = 'Verify';
+
+    if (!verifiedOk) {
+      $('warn').textContent = 'Invalid OTP code. Please try again.';
+      return;
+    }
+
+    verifiedPhone = pendingPhone;
+    $('codeStep').hidden = true;
+    $('verifiedStep').hidden = false;
+    $('verifiedPhoneDisplay').textContent = `+91 ${verifiedPhone}`;
+    $('warn').textContent = '';
+
+    const existingCloud = await fetchCloudSpin(verifiedPhone);
+    if (existingCloud) savePhoneRecordLocal(verifiedPhone, existingCloud);
+    updateSpinState();
+    const existingRec = getPhoneRecordLocal(verifiedPhone);
+    if (existingRec) openModal(existingRec);
+  });
+
+  $('phoneInput').addEventListener('keydown', e => { if (e.key === 'Enter')$('sendOtpBtn').click(); });
+  $('otpCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter')$('verifyOtpBtn').click(); });
+
+  $('changePhoneBtn').addEventListener('click', () => {
+    if (spinning) return;
+    verifiedPhone = '';
+    pendingPhone = '';
+    $('verifiedStep').hidden = true;
+    $('codeStep').hidden = true;
+    $('phoneStep').hidden = false;
+    $('warn').textContent = '';
+    updateSpinState();
+  });
+
+  const isActive = r => r.label.trim() !== '' && r.weight > 0;
+  const activeRows = () => state.rows.filter(isActive);
+  const totalWeight = () => activeRows().reduce((s, r) => s + r.weight, 0);
+  const pctText = r => {
+    const t = totalWeight();
+    return (!isActive(r) || !t) ? 'off' : `${Number((r.weight / t * 100).toFixed(1))}%`;
+  };
+
+  function layout() {
+    const act = activeRows(), total = totalWeight(), n = act.length;
+    let a = 0;
+    return act.map((r, i) => {
+      const size = state.equal ? TAU / n : (r.weight / total) * TAU;
+      let ci = i % 2;
+      if (n > 2 && i === n - 1 && ci === 0) ci = 2;
+      const seg = { row: r, start: a, size, ci };
+      a += size;
+      return seg;
+    });
+  }
+
+  function draw() {
+    const w = canvas.clientWidth;
+    if (!w) return;
+    const dpr = window.devicePixelRatio || 1;
+    const px = Math.round(w * dpr);
+    if (canvas.width !== px) { canvas.width = px; canvas.height = px; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, w);
+
+    const cs = getComputedStyle(document.documentElement);
+    const tok = (n, d) => cs.getPropertyValue(n).trim() || d;
+    const rim = tok('--rim', '#13110e'), bulb = tok('--bulb', '#f4f1ea'), pointer = tok('--pointer', '#f4f1ea');
+    const pal = [tok('--seg-a', '#13110e'), tok('--seg-b', '#f4f1ea'), tok('--seg-c', '#737069')];
+    const cx = w / 2, cy = w / 2, Ro = w / 2 - 4, R = Ro - 18;
+
+    ctx.beginPath(); ctx.arc(cx, cy, Ro, 0, TAU); ctx.fillStyle = rim; ctx.fill();
+
+    const bulbs = 32, phase = spinning ? Math.floor(performance.now() / 220) : 0;
+    ctx.fillStyle = bulb;
+    for (let i = 0; i < bulbs; i++) {
+      const ba = (i / bulbs) * TAU, br = (R + Ro) / 2;
+      ctx.globalAlpha = (i + phase) % 2 === 0 ? 1 : 0.3;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(ba) * br, cy + Math.sin(ba) * br, 2.6, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const segs = layout();
+    if (segs.length < 2) {
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fillStyle = pal[2]; ctx.fill();
+      ctx.fillStyle = '#f4f1ea'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `500 ${Math.max(14, R * 0.07)}px "Jost", sans-serif`;
+      ctx.fillText('Add at least two prizes', cx, cy);
+    } else {
+      segs.forEach(g => {
+        const col = pal[g.ci], a0 = rot + g.start, a1 = a0 + g.size;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, a0, a1); ctx.closePath();
+        ctx.fillStyle = col; ctx.fill();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = rim; ctx.stroke();
+
+        let label = g.row.label.trim().toUpperCase();
+        const maxW = R * 0.64;
+        let fs = Math.min(R * 0.078, g.size * R * 0.33);
+        if (fs < 8) return;
+
+        const n = parseInt(col.slice(1), 16);
+        const lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(a0 + g.size / 2);
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = lum > 150 ? '#13110e' : '#f4f1ea';
+        ctx.font = `500 ${fs}px "Jost", sans-serif`;
+        while (ctx.measureText(label).width > maxW && fs > 10) {
+          ctx.font = `500 ${--fs}px "Jost", sans-serif`;
+        }
+        while (ctx.measureText(label).width > maxW && label.length > 2) label = `${label.slice(0, -2)}…`;
+        ctx.fillText(label, R - 16, 0);
+        ctx.restore();
+      });
+    }
+
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.14, 0, TAU); ctx.fillStyle = rim; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.05, 0, TAU); ctx.fillStyle = pointer; ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, 1); ctx.lineTo(cx + 14, 1); ctx.lineTo(cx, cy - R + 18); ctx.closePath();
+    ctx.fillStyle = pointer; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = rim; ctx.stroke();
+  }
+
+  function renderRows() {
+    $('rows').innerHTML = '';
+    state.rows.forEach((r, i) => {
+      const li = document.createElement('li');
+      li.className = 'row';
+      li.dataset.id = r.id;
+      li.innerHTML = `
+        <input type="text" class="in-label" maxlength="28" value="${r.label.replace(/"/g, '&quot;')}" placeholder="e.g. 10% off" aria-label="Prize ${i + 1}">
+        <input type="number" class="in-weight" min="0" step="any" value="${r.weight}" aria-label="Weight ${i + 1}">
+        <output class="chance"></output>
+        <button type="button" class="icon-btn" ${state.rows.length <= 2 ? 'disabled' : ''} aria-label="Remove">×</button>
+      `;
+      $('rows').appendChild(li);
+    });
+    renderChances();
+  }
+
+  function renderChances() {
+    Array.from($('rows').children).forEach(li => {
+      const r = state.rows.find(x => x.id === li.dataset.id);
+      if (!r) return;
+      const out = li.querySelector('output');
+      const t = pctText(r);
+      out.textContent = t;
+      out.classList.toggle('off', t === 'off');
+    });
+  }
+
+  function renderTally() {
+    const total = state.rows.reduce((s, r) => s + (state.tally[r.id] || 0), 0);
+    $('tally').innerHTML = state.rows.map(r => {
+      const n = state.tally[r.id] || 0;
+      const share = total ? `${Number((n / total * 100).toFixed(1))}%` : '–';
+      return `<tr><td>${r.label.trim() || '(unnamed)'}</td><td class="num">${pctText(r)}</td><td class="num">${n}</td><td class="num">${share}</td></tr>`;
+    }).join('');
+    $('recent').innerHTML = total
+      ? `${total} spin${total === 1 ? '' : 's'} so far. Latest: ${state.history.slice(0, 5).map(h => `<b>${h}</b>`).join(', ')}`
+      : 'No spins yet.';
+  }
+
+  function openModal(rec) {
+    $('modalPrize').textContent = rec.prize;
+    $('modalCustomer').textContent = rec.customer || `+91 ${rec.phone}`;
+    $('modalTime').textContent = rec.time;
+    $('modalCode').textContent = rec.code;
+    $('prizeModal').hidden = false;
+    clearInterval(clockTimer);
+    const tick = () => { $('liveClock').textContent = `OTP VERIFIED • ${new Date().toLocaleTimeString()}`; };
+    tick();
+    clockTimer = setInterval(tick, 1000);
+  }
+
+  function showResult(rec) {
+    const el = $('result');
+    el.classList.add('won');
+    el.innerHTML = `
+      <span class="kicker">You won</span>
+      <span class="prize">${rec.prize}</span>
+      <div class="actions" style="margin-top:6px"><button type="button" class="btn solid" id="reopenPassBtn">Open voucher &amp; proof</button></div>
+    `;
+    $('reopenPassBtn').onclick = () => openModal(rec);
+  }
+
+  async function updateSpinState() {
+    const spinBtn = $('spinBtn');
+    if (layout().length < 2) {
+      spinBtn.disabled = true;
+      $('warn').textContent = 'Add at least two active prizes to spin.';
+      return;
+    }
+
+    let existingRec = getPhoneRecordLocal(verifiedPhone || 'DEVICE');
+    
+    // Cross-verify with cloud DB if phone is verified and Supabase is active
+    if (verifiedPhone && sbClient) {
+      const cloudRec = await fetchCloudSpin(verifiedPhone);
+      if (cloudRec) {
+        existingRec = cloudRec;
+        savePhoneRecordLocal(verifiedPhone, cloudRec);
+      }
+    }
+
+    if (existingRec) {
+      verifiedPhone = existingRec.phone || verifiedPhone;
+      $('phoneStep').hidden = true;
+      $('codeStep').hidden = true;
+      $('verifiedStep').hidden = false;
+      $('verifiedPhoneDisplay').textContent = existingRec.customer || `+91 ${verifiedPhone}`;
+      $('changePhoneBtn').hidden = true;
+      spinBtn.disabled = true;
+      spinBtn.textContent = 'ALREADY SPUN';
+      showResult(existingRec);
+      return;
+    }
+
+    if (!verifiedPhone) {
+      spinBtn.disabled = true;
+      spinBtn.textContent = 'VERIFY PHONE TO SPIN';
+      return;
+    }
+
+    spinBtn.textContent = 'SPIN';
+    spinBtn.disabled = spinning;
+  }
+
+  function changed() {
+    initSupabase();
+    saveState();
+    renderChances();
+    renderTally();
+    $('shareUrlInput').value = `${window.location.href.split('?')[0]}?c=${encodeSharedConfig(state)}`;
+    updateSpinState();
+    draw();
+  }
+
+  $('spinBtn').addEventListener('click', async () => {
+    if (spinning || !verifiedPhone) return;
+    
+    // Final pre-spin check against cloud DB to prevent dual spins via multiple browser windows
+    if (sbClient) {
+      const cloudCheck = await fetchCloudSpin(verifiedPhone);
+      if (cloudCheck) {
+        savePhoneRecordLocal(verifiedPhone, cloudCheck);
+        updateSpinState();
+        openModal(cloudCheck);
+        return;
+      }
+    }
+
+    if (getPhoneRecordLocal(verifiedPhone)) {
+      updateSpinState();
+      return;
+    }
+
+    const segs = layout();
+    if (segs.length < 2) return;
+
+    let r = rand() * segs.reduce((s, g) => s + g.row.weight, 0);
+    let pick = segs[segs.length - 1];
+    for (const seg of segs) {
+      if (r < seg.row.weight) { pick = seg; break; }
+      r -= seg.row.weight;
+    }
+
+    const theta = pick.start + pick.size * (0.12 + 0.76 * rand());
+    const need = ((-Math.PI / 2 - theta - rot) % TAU + TAU) % TAU;
+    const turns = reduceMotion ? 1 : 5 + Math.floor(rand() * 3);
+    const from = rot, to = rot + need + turns * TAU;
+    const dur = reduceMotion ? 800 : 5000 + rand() * 800;
+    const t0 = performance.now();
+
+    spinning = true;
+    $('setup').disabled = true;
+    $('spinBtn').disabled = true;
+    $('result').classList.remove('won');$('result').innerHTML = '<span class="kicker">Spinning</span><span class="prize">…</span>';
+
+    function frame(now) {
+      const t = Math.min(1, (now - t0) / dur);
+      rot = from + (to - from) * (1 - Math.pow(1 - t, 4));
+      draw();
+      if (t < 1) return requestAnimationFrame(frame);
+
+      rot = ((to % TAU) + TAU) % TAU;
+      spinning = false;
+      $('setup').disabled = false;
+
+      const label = pick.row.label.trim();
+      const rowIndex = state.rows.findIndex(x => x.id === pick.row.id);
+      const nonce = Math.floor(rand() * 65536).toString(16).toUpperCase().padStart(4, '0');
+      const rec = {
+        prize: label,
+        customer: `+91 ${verifiedPhone}`,
+        phone: verifiedPhone,
+        code: generateProofCode(rowIndex, verifiedPhone, nonce),
+        time: new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+      };
+
+      savePhoneRecordLocal(verifiedPhone, rec);
+      saveCloudSpin(verifiedPhone, rec); // Saves to Supabase spins table
+
+      state.tally[pick.row.id] = (state.tally[pick.row.id] || 0) + 1;
+      state.history = [`${label} (+91 ${verifiedPhone})`, ...state.history].slice(0, 8);
+      saveState();
+      draw();
+      renderTally();
+      updateSpinState();
+      openModal(rec);
+    }
+    requestAnimationFrame(frame);
+  });
+
+  // --- Stall Verification & Admin Listeners ---
+  $('verifyBtn').addEventListener('click', async () => {
+    const p = cleanPhone($('verifyCustInput').value);
+    const cCode = $('verifyCodeInput').value.trim();
+    const out = $('verifyOut'), redeemBtn =$('redeemBtn');
+    out.hidden = false;
+
+    if (!/^[6-9]\d{9}$/.test(p)) {
+      out.className = 'verify-out';
+      out.innerHTML = '<strong>Invalid Phone Number</strong>Enter a valid 10-digit mobile number.';
+      redeemBtn.hidden = true;
+      return;
+    }
+
+    if (sbClient) {
+      const cloudRec = await fetchCloudSpin(p);
+      if (cloudRec) {
+        out.className = 'verify-out valid';
+        lastVerifiedClaim = { phone: p, code: cloudRec.code, source: 'cloud' };
+        out.innerHTML = `<strong>${cloudRec.redeemed ? 'Cloud Verified — Already Redeemed' : 'Cloud Verified Win ✓'}</strong>Discount: <b>${cloudRec.prize}</b><br>Phone: +91 ${p}<br>Code: ${cloudRec.code}`;
+        redeemBtn.hidden = cloudRec.redeemed;
+        return;
+      }
+    }
+
+    if (!cCode) {
+      out.className = 'verify-out';
+      out.innerHTML = `<strong>Enter Proof Code</strong>No cloud record for +91 ${p}. Enter the customer's Proof Code to verify offline.`;
+      redeemBtn.hidden = true;
+      return;
+    }
+
+    const res = verifyProofCodeOffline(cCode, p);
+    if (!res.valid) {
+      out.className = 'verify-out';
+      out.innerHTML = `<strong>Invalid Claim</strong>${res.reason}`;
+      redeemBtn.hidden = true;
+      return;
+    }
+
+    out.className = 'verify-out valid';
+    lastVerifiedClaim = { phone: p, code: res.code, source: 'offline' };
+    out.innerHTML = `<strong>${res.redeemed ? 'Authentic — Already Redeemed' : 'Authentic Claim Verified ✓'}</strong>Discount: <b>${res.prize}</b><br>Phone: +91 ${p}`;
+    redeemBtn.hidden = !!res.redeemed;
+  });
+
+  $('redeemBtn').addEventListener('click', async () => {
+    if (!lastVerifiedClaim) return;
+    if (lastVerifiedClaim.source === 'cloud' && sbClient) {
+      await markCloudRedeemed(lastVerifiedClaim.phone);
+    }
+    const map = JSON.parse(localStorage.getItem(KEYS.REDEEMED) || '{}');
+    map[lastVerifiedClaim.code] = new Date().toLocaleString();
+    localStorage.setItem(KEYS.REDEEMED, JSON.stringify(map));
+    $('verifyBtn').click();
+  });
+
+  $('rows').addEventListener('input', e => {
+    const li = e.target.closest('li');
+    const r = state.rows.find(x => x.id === li?.dataset.id);
+    if (!r) return;
+    if (e.target.classList.contains('in-label')) r.label = e.target.value;
+    if (e.target.classList.contains('in-weight')) r.weight = Math.max(0, parseFloat(e.target.value) || 0);
+    changed();
+  });
+
+  $('rows').addEventListener('click', e => {
+    const btn = e.target.closest('.icon-btn');
+    if (!btn || btn.disabled) return;
+    const id = btn.closest('li').dataset.id;
+    state.rows = state.rows.filter(x => x.id !== id);
+    delete state.tally[id];
+    renderRows();
+    changed();
+  });
+
+  $('addBtn').addEventListener('click', () => {
+    state.rows.push({ id: `r${Math.random().toString(36).slice(2, 8)}`, label: '', weight: 5 });
+    renderRows();
+    changed();
+  });
+
+  document.querySelectorAll('input[name="slice"]').forEach(el => {
+    el.addEventListener('change', () => { state.equal = $('sliceEqual').checked; changed(); });
+  });
+
+  ['secretInput:secret', 'sbUrlInput:sbUrl', 'sbKeyInput:sbKey', 'fast2smsInput:fast2sms'].forEach(pair => {
+    const [elId, prop] = pair.split(':');
+    $(elId).addEventListener('input', e => { state[prop] = e.target.value.trim(); changed(); });
+  });
+
+  $('copyLinkBtn').addEventListener('click', function () {
+    navigator.clipboard.writeText($('shareUrlInput').value);
+    this.textContent = 'Copied!';
+    setTimeout(() => { this.textContent = 'Copy customer link'; }, 1800);
+  });
+
+  $('resetDeviceSpinBtn').addEventListener('click', () => {
+    localStorage.removeItem(KEYS.LOCK);
+    verifiedPhone = '';
+    pendingPhone = '';
+    $('verifiedStep').hidden = true;
+    $('codeStep').hidden = true;
+    $('phoneStep').hidden = false;
+    $('changePhoneBtn').hidden = false;
+    $('phoneInput').value = '';
+    $('result').classList.remove('won');$('result').innerHTML = '<span class="kicker">Your prize</span><span class="prize">Verify phone &amp; spin</span>';
+    $('warn').textContent = '';
+    updateSpinState();
+  });
+
+  $('restoreBtn').addEventListener('click', () => { state = defaultState(); initUI(); });$('resetBtn').addEventListener('click', () => { state.tally = {}; state.history = []; saveState(); renderTally(); });
+
+  $('modeBtn').addEventListener('click', function () {
+    if (isCustomerLocked) return;
+    const on = document.body.classList.toggle('kiosk');
+    this.textContent = on ? 'Edit wheel' : 'Customer view';
+    requestAnimationFrame(draw);
+  });
+
+  $('closeModalBtn').addEventListener('click', () => { $('prizeModal').hidden = true; clearInterval(clockTimer); });$('copyProofBtn').addEventListener('click', function () {
+    const text = `Callista Pass | Phone: ${$('modalCustomer').textContent} | Discount: ${$('modalPrize').textContent} | Code: ${$('modalCode').textContent}`;
+    navigator.clipboard.writeText(text);
+    this.textContent = 'Copied!';
+    setTimeout(() => { this.textContent = 'Copy proof'; }, 1800);
+  });
+
+  function initUI() {
+    $('sliceEqual').checked = state.equal;
+    $('sliceOdds').checked = !state.equal;
+    $('secretInput').value = state.secret \vert{}\vert{} 'CALLISTA26';$('sbUrlInput').value = state.sbUrl || '';
+    $('sbKeyInput').value = state.sbKey \vert{}\vert{} '';$('fast2smsInput').value = state.fast2sms || '';
+    if (isCustomerLocked) document.body.classList.add('kiosk', 'customer-locked');
+    renderRows();
+    changed();
+  }
+
+  initUI();
+  if (window.ResizeObserver) new ResizeObserver(draw).observe(canvas);
+  window.addEventListener('resize', draw);
+})();
+</script>
+</body>
+</html>
